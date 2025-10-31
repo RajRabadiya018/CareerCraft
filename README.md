@@ -63,14 +63,20 @@ The application will be available at `http://localhost:3000`
 ## Project Structure
 
 ```
-├── actions/         # Server actions for data mutations
-├── app/            # Next.js app directory
-├── components/     # Reusable UI components
-├── data/          # Static data and constants
-├── hooks/         # Custom React hooks
-├── lib/           # Utility functions and configurations
-├── prisma/        # Database schema and migrations
-└── public/        # Static assets
+careercraft/
+├── app/                      # Next.js App Router or pages
+│   ├── components/           # Reusable UI components
+│   ├── dashboard/            # Dashboard related components/pages
+│   ├── resume/               # Resume & cover letter editor
+│   └── interview/            # Mock interview UI
+├── lib/                      # Helpers, API clients, prompt templates
+├── prisma/                   # schema.prisma and migrations
+├── scripts/                  # utility scripts (seed, cron jobs)
+├── public/                   # static assets
+├── .env.example
+├── package.json
+└── README.md
+
 ```
 
 ## Development
