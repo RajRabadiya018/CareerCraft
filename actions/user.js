@@ -18,12 +18,12 @@ export async function updateUser(data) {
   try {
     // Parse skills from comma-separated string to array
     // const skillsArray = data.skills?.split(",").map((skill) => skill.trim()) || [];
-    const skillsArray = 
-    typeof data.skills === "string"
-      ? data.skills.split(",").map((s) => s.trim())
-      : Array.isArray(data.skills)
-        ? data.skills.map((s) => s.trim())
-        : [];
+    const skillsArray =
+      typeof data.skills === "string"
+        ? data.skills.split(",").map((s) => s.trim())
+        : Array.isArray(data.skills)
+          ? data.skills.map((s) => s.trim())
+          : [];
     const result = await db.$transaction(
       async (tx) => {
         // First check if industry exists
@@ -77,12 +77,6 @@ export async function updateUser(data) {
 export async function getUserOnboardingStatus() {
   const { userId } = await auth();
   if (!userId) throw new Error("Unauthorized");
-
-  const user = await db.user.findUnique({
-    where: { clerkUserId: userId },
-  });
-
-  if (!user) throw new Error("User not found");
 
   try {
     const user = await db.user.findUnique({

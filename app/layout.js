@@ -9,7 +9,7 @@ import "./globals.css";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata = {
-  title: "Career Forge",
+  title: "Career Craft",
   description: "",
 };
 
@@ -21,9 +21,8 @@ export default function RootLayout({ children }) {
       }}
     >
       <html lang="en" suppressHydrationWarning>
-        <head>
-          <link rel="icon" href="/logo.png" sizes="any" />
-        </head>
+        <head />
+
         <body className={`${inter.className}`}>
           <ThemeProvider
             attribute="class"

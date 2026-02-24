@@ -7,7 +7,7 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
-export async function generateQuiz() {
+export async function generateQuiz({ category = "Technical", difficulty = "medium" } = {}) {
   const { userId } = await auth();
   if (!userId) throw new Error("Unauthorized");
 
@@ -21,12 +21,25 @@ export async function generateQuiz() {
 
   if (!user) throw new Error("User not found");
 
+  const difficultyDescriptions = {
+    easy: "beginner-friendly and foundational, testing basic concepts and definitions",
+    medium: "intermediate-level, testing practical application and understanding",
+    hard: "advanced and challenging, testing deep expertise, edge cases, and complex scenarios",
+  };
+
+  const categoryDescriptions = {
+    Technical: "technical knowledge, coding concepts, tools, and technologies",
+    Behavioral: "behavioral situations, teamwork, leadership, conflict resolution, and soft skills using the STAR method format",
+    Situational: "hypothetical workplace scenarios, decision-making, problem-solving, and professional judgment",
+  };
+
   const prompt = `
-    Generate 10 technical interview questions for a ${
-      user.industry
-    } professional${
-    user.skills?.length ? ` with expertise in ${user.skills.join(", ")}` : ""
-  }.
+    Generate 10 ${difficulty} difficulty ${category.toLowerCase()} interview questions for a ${user.industry
+    } professional${user.skills?.length ? ` with expertise in ${user.skills.join(", ")}` : ""
+    }.
+    
+    The questions should be ${difficultyDescriptions[difficulty] || difficultyDescriptions.medium}.
+    Focus on ${categoryDescriptions[category] || categoryDescriptions.Technical}.
     
     Each question should be multiple choice with 4 options.
     
@@ -37,7 +50,8 @@ export async function generateQuiz() {
           "question": "string",
           "options": ["string", "string", "string", "string"],
           "correctAnswer": "string",
-          "explanation": "string"
+          "hint": "A brief conceptual clue that helps the user think about the question without revealing which option is correct. Do NOT mention any option letter or the correct answer.",
+          "explanation": "string - full explanation of why the correct answer is right, shown after quiz completion"
         }
       ]
     }
@@ -57,7 +71,7 @@ export async function generateQuiz() {
   }
 }
 
-export async function saveQuizResult(questions, answers, score) {
+export async function saveQuizResult(questions, answers, score, { category = "Technical", difficulty = "medium", timeSpent = null } = {}) {
   const { userId } = await auth();
   if (!userId) throw new Error("Unauthorized");
 
@@ -84,12 +98,12 @@ export async function saveQuizResult(questions, answers, score) {
     const wrongQuestionsText = wrongAnswers
       .map(
         (q) =>
-          `Question: "${q.question}"\nCorrect Answer: "${q.answer}"\nUser Answer: "${q.userAnswer}"`
+          `Question: "${q.question}"\nCorrect Answer: "${q.answer}"\nUser Answer: "${q.userAnswer || 'Skipped'}"`
       )
       .join("\n\n");
 
     const improvementPrompt = `
-      The user got the following ${user.industry} technical interview questions wrong:
+      The user got the following ${user.industry} ${category.toLowerCase()} interview questions wrong (difficulty: ${difficulty}):
 
       ${wrongQuestionsText}
 
@@ -116,7 +130,9 @@ export async function saveQuizResult(questions, answers, score) {
         userId: user.id,
         quizScore: score,
         questions: questionResults,
-        category: "Technical",
+        category,
+        difficulty,
+        timeSpent,
         improvementTip,
       },
     });
@@ -153,4 +169,94 @@ export async function getAssessments() {
     console.error("Error fetching assessments:", error);
     throw new Error("Failed to fetch assessments");
   }
+}
+
+// =========== Bookmark Actions ===========
+
+export async function bookmarkQuestion(questionData) {
+  const { userId } = await auth();
+  if (!userId) throw new Error("Unauthorized");
+
+  const user = await db.user.findUnique({
+    where: { clerkUserId: userId },
+  });
+
+  if (!user) throw new Error("User not found");
+
+  try {
+    // Check if already bookmarked (by matching question text)
+    const existingBookmarks = user.bookmarkedQuestions || [];
+    const alreadyBookmarked = existingBookmarks.some(
+      (bq) => bq.question === questionData.question
+    );
+
+    if (alreadyBookmarked) {
+      return { success: true, message: "Already bookmarked" };
+    }
+
+    const updatedUser = await db.user.update({
+      where: { id: user.id },
+      data: {
+        bookmarkedQuestions: {
+          push: {
+            question: questionData.question,
+            answer: questionData.answer,
+            explanation: questionData.explanation,
+            category: questionData.category || "Technical",
+            bookmarkedAt: new Date().toISOString(),
+          },
+        },
+      },
+    });
+
+    return { success: true, bookmarkedQuestions: updatedUser.bookmarkedQuestions };
+  } catch (error) {
+    console.error("Error bookmarking question:", error);
+    throw new Error("Failed to bookmark question");
+  }
+}
+
+export async function removeBookmark(questionText) {
+  const { userId } = await auth();
+  if (!userId) throw new Error("Unauthorized");
+
+  const user = await db.user.findUnique({
+    where: { clerkUserId: userId },
+  });
+
+  if (!user) throw new Error("User not found");
+
+  try {
+    const updatedBookmarks = (user.bookmarkedQuestions || []).filter(
+      (bq) => bq.question !== questionText
+    );
+
+    const updatedUser = await db.user.update({
+      where: { id: user.id },
+      data: {
+        bookmarkedQuestions: updatedBookmarks,
+      },
+    });
+
+    return { success: true, bookmarkedQuestions: updatedUser.bookmarkedQuestions };
+  } catch (error) {
+    console.error("Error removing bookmark:", error);
+    throw new Error("Failed to remove bookmark");
+  }
+}
+
+export async function getBookmarkedQuestions() {
+  const { userId } = await auth();
+  if (!userId) throw new Error("Unauthorized");
+
+  const user = await db.user.findUnique({
+    where: { clerkUserId: userId },
+    select: {
+      bookmarkedQuestions: true,
+    },
+  });
+
+  if (!user) throw new Error("User not found");
+
+  return user.bookmarkedQuestions || [];
 }

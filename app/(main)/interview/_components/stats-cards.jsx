@@ -1,5 +1,5 @@
-import { Brain, Target, Trophy } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Brain, Clock, Target, Trophy } from "lucide-react";
 
 export default function StatsCards({ assessments }) {
   const getAverageScore = () => {
@@ -13,7 +13,7 @@ export default function StatsCards({ assessments }) {
 
   const getLatestAssessment = () => {
     if (!assessments?.length) return null;
-    return assessments[0];
+    return assessments[assessments.length - 1];
   };
 
   const getTotalQuestions = () => {
@@ -24,8 +24,22 @@ export default function StatsCards({ assessments }) {
     );
   };
 
+  const getAverageTime = () => {
+    if (!assessments?.length) return null;
+    const withTime = assessments.filter((a) => a.timeSpent);
+    if (!withTime.length) return null;
+    const avgSeconds = Math.round(
+      withTime.reduce((sum, a) => sum + a.timeSpent, 0) / withTime.length
+    );
+    const mins = Math.floor(avgSeconds / 60);
+    const secs = avgSeconds % 60;
+    return `${mins}m ${secs}s`;
+  };
+
+  const avgTime = getAverageTime();
+
   return (
-    <div className="grid gap-4 md:grid-cols-3">
+    <div className={`grid gap-4 ${avgTime ? "md:grid-cols-4" : "md:grid-cols-3"}`}>
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
           <CardTitle className="text-sm font-medium">Average Score</CardTitle>
@@ -34,7 +48,7 @@ export default function StatsCards({ assessments }) {
         <CardContent>
           <div className="text-2xl font-bold">{getAverageScore()}%</div>
           <p className="text-xs text-muted-foreground">
-            Across all assessments
+            Across {assessments?.length || 0} assessments
           </p>
         </CardContent>
       </Card>
@@ -64,6 +78,19 @@ export default function StatsCards({ assessments }) {
           <p className="text-xs text-muted-foreground">Most recent quiz</p>
         </CardContent>
       </Card>
+
+      {avgTime && (
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Avg. Time</CardTitle>
+            <Clock className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{avgTime}</div>
+            <p className="text-xs text-muted-foreground">Per quiz</p>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

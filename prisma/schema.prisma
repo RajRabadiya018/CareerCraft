@@ -24,6 +24,7 @@ model User {
   
   // Relations
   skills        String[]  // Array of skills
+  bookmarkedQuestions Json[]  // Array of {question, answer, explanation, category}
   assessments   Assessment[]
   resume        Resume?
   coverLetter   CoverLetter[]
@@ -35,7 +36,9 @@ model Assessment {
   user          User      @relation(fields: [userId], references: [id])
   quizScore     Float     // Overall quiz score
   questions     Json[]    // Array of {question, answer, userAnswer, isCorrect}
-  category      String    // "Technical", "Behavioral", etc.
+  category      String    // "Technical", "Behavioral", "Situational"
+  difficulty    String    @default("medium")  // "easy", "medium", "hard"
+  timeSpent     Int?      // Total seconds spent on quiz
   improvementTip String?  // AI-generated improvement tip
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
@@ -91,6 +94,11 @@ model IndustryInsight {
   
   // Learning suggestions
   recommendedSkills String[]  // Skills recommended for the industry
+
+  // Enhanced data
+  learningResources  Json[]   // [{name, type, url, description}]
+  topCompanies       Json[]   // [{name, industry, description}]
+  jobMarket          Json?    // {openPositions, remotePercentage, topLocations, averageExperience}
   
   lastUpdated   DateTime  @default(now())
   nextUpdate    DateTime  // Scheduled update time
