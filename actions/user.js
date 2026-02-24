@@ -24,47 +24,34 @@ export async function updateUser(data) {
         : Array.isArray(data.skills)
           ? data.skills.map((s) => s.trim())
           : [];
-    const result = await db.$transaction(
-      async (tx) => {
-        // First check if industry exists
-        let industryInsight = await tx.industryInsight.findUnique({
-          where: {
-            industry: data.industry,
-          },
-        });
+    // Check if industry insight exists outside the transaction
+    let industryInsight = await db.industryInsight.findUnique({
+      where: { industry: data.industry },
+    });
 
-        // If industry doesn't exist, create it with default values
-        if (!industryInsight) {
-          const insights = await generateAIInsights(data.industry);
+    // Generate AI insights outside the transaction to avoid timeout
+    if (!industryInsight) {
+      const insights = await generateAIInsights(data.industry);
 
-          industryInsight = await tx.industryInsight.create({
-            data: {
-              industry: data.industry,
-              ...insights,
-              nextUpdate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
-            },
-          });
-        }
+      industryInsight = await db.industryInsight.create({
+        data: {
+          industry: data.industry,
+          ...insights,
+          nextUpdate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+        },
+      });
+    }
 
-        // Now update the user
-        const updatedUser = await tx.user.update({
-          where: {
-            id: user.id,
-          },
-          data: {
-            industry: data.industry,
-            experience: parseInt(data.experience) || 0,
-            bio: data.bio,
-            skills: skillsArray,
-          },
-        });
-
-        return updatedUser;
+    // Now update the user (fast DB-only transaction)
+    const result = await db.user.update({
+      where: { id: user.id },
+      data: {
+        industry: data.industry,
+        experience: parseInt(data.experience) || 0,
+        bio: data.bio,
+        skills: skillsArray,
       },
-      {
-        timeout: 10000, // default: 5000
-      }
-    );
+    });
 
     revalidatePath("/");
     return { success: true, user: result };
